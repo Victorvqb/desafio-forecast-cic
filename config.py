@@ -1,6 +1,7 @@
 # config.py
 """
 Arquivo de configuração central para o projeto de previsão de vendas.
+
 Armazena todos os caminhos de arquivos, parâmetros de modelo e listas de features
 para facilitar a manutenção e a reprodutibilidade.
 """
@@ -14,12 +15,12 @@ PATH_TRANSACOES = 'data/raw/part-00000-tid-5196563791502273604-c90d3a24-52f2-495
 PATH_PRODUTOS = 'data/raw/part-00000-tid-7173294866425216458-eae53fbf-d19e-4130-ba74-78f96b9675f1-4-1-c000.snappy.parquet'
 
 # Local onde os artefatos gerados serão salvos
-PATH_OUTPUT = "previsao_final.csv"
-PATH_MODELO_FINAL = "modelo_lgbm_final.joblib" # Usar .joblib é uma boa prática
+PATH_OUTPUT = "previsao_final.parquet" # Arquivo final de previsões
+PATH_MODELO_FINAL = "modelo_lgbm_final.joblib" # .joblib é o formato recomendado para salvar modelos sklearn/lgbm
 
 
 # --- 2. Parâmetros do Modelo LightGBM ---
-# Parâmetros ajustados para performance (Estratégia 1)
+# Estes são os parâmetros base. A otimização do Optuna irá sobrescrevê-los.
 LGBM_PARAMS = {
     'objective': None,          # Será definido dinamicamente no script de treino
     'n_estimators': 2000,
@@ -55,3 +56,6 @@ FERIADOS_2022 = [
     date(2022, 4, 21), date(2022, 9, 7), date(2022, 10, 12),
     date(2022, 11, 2), date(2022, 11, 15)
 ]
+
+# --- 5. Configurações da Otimização (Optuna) ---
+OPTUNA_N_TRIALS = 50 # Número de tentativas que o Optuna fará. Aumente para uma busca mais exaustiva.

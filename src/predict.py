@@ -1,8 +1,8 @@
-# src/predict.py
+# src/predict.py (VERSÃO FINAL SIMPLIFICADA)
 """
 Módulo para gerar as previsões futuras.
 A principal função implementa um loop iterativo, onde a previsão de uma semana
-é usada para construir as features da semana seguinte.
+é usada para construir as features da semana seguinte, tornando o processo mais robusto.
 """
 
 import polars as pl
@@ -11,14 +11,14 @@ import numpy as np
 from datetime import date, timedelta
 import config
 
-def generate_predictions(model, df_modelagem: pl.DataFrame, df_semanal_corrigido: pl.DataFrame) -> pl.DataFrame:
+def generate_predictions(model, df_modelagem: pl.DataFrame, pdv_produto_unicos: pl.DataFrame) -> pl.DataFrame:
     """
     Usa um modelo treinado para gerar as previsões para as 5 semanas de Janeiro/2023.
 
     Args:
         model: O artefato do modelo LightGBM já treinado.
         df_modelagem (pl.DataFrame): Fonte para o histórico recente e entidades únicas.
-        df_semanal_corrigido (pl.DataFrame): Fonte para os valores históricos de vendas e preço.
+        pdv_produto_unicos (pl.DataFrame): DataFrame contendo os pares PDV/Produto prioritários para prever.
     
     Returns:
         pl.DataFrame: DataFrame formatado para a submissão final.
@@ -27,7 +27,8 @@ def generate_predictions(model, df_modelagem: pl.DataFrame, df_semanal_corrigido
 
     # --- 1. Preparar histórico recente e esqueleto futuro ---
     ultimas_semanas_2022_hist = df_modelagem.filter(pl.col("data") > date(2022, 11, 28))
-    pdv_produto_unicos = df_modelagem.select(["pdv", "produto"]).unique()
+    
+    
     semanas_jan_2023 = [date(2023, 1, 2), date(2023, 1, 9), date(2023, 1, 16), date(2023, 1, 23), date(2023, 1, 30)]
     df_futuro = pdv_produto_unicos.join(pl.DataFrame({"data": semanas_jan_2023}), how="cross")
     df_futuro = df_futuro.with_columns(pl.col("data").cast(pl.Datetime))
@@ -44,7 +45,7 @@ def generate_predictions(model, df_modelagem: pl.DataFrame, df_semanal_corrigido
     df_previsoes_finais = []
     
     for semana_atual in semanas_jan_2023:
-        # Preencher o preço nulo com o último valor conhecido para a semana atual
+        # Preencher o preço nulo com o último valor conhecido (forward fill)
         df_futuro_com_historia = df_futuro_com_historia.with_columns(
             pl.col("preco_lag_1_semana").fill_null(strategy="forward")
         )

@@ -19,6 +19,7 @@ def load_and_join_data() -> pl.DataFrame:
     Returns:
         pl.DataFrame: DataFrame unificado contendo todos os dados brutos.
     """
+    # Carrega os arquivos usando os caminhos definidos no config
     df_pdv = pl.read_parquet(config.PATH_PDV)
     df_transacoes = pl.read_parquet(config.PATH_TRANSACOES)
     df_produtos = pl.read_parquet(config.PATH_PRODUTOS)
@@ -37,14 +38,15 @@ def clean_and_aggregate(df_completo: pl.DataFrame) -> pl.DataFrame:
     1. Seleciona colunas essenciais e remove registros incompletos.
     2. Agrega os dados transacionais para o nível semanal por PDV e produto.
     3. Identifica e corrige o outlier de vendas de Setembro/2022, substituindo
-       os dados da semana anômala pelos da semana anterior.
+       os dados da semana anômala pelos da semana anterior para manter a consistência.
 
     Args:
         df_completo (pl.DataFrame): O DataFrame unificado de dados brutos.
 
     Returns:
-        pl.DataFrame: DataFrame limpo e agregado no nível semanal.
+        pl.DataFrame: DataFrame limpo e agregado no nível semanal, pronto para feature engineering.
     """
+    # 1. Seleção inicial e conversão de tipos
     df_essencial = df_completo.select([
         pl.col("transaction_date").cast(pl.Datetime).alias("data"),
         pl.col("internal_store_id").alias("pdv"),
@@ -53,6 +55,7 @@ def clean_and_aggregate(df_completo: pl.DataFrame) -> pl.DataFrame:
         pl.col("net_value")
     ]).drop_nulls()
 
+    # 2. Agregação para o nível semanal
     df_semanal = df_essencial.group_by(
         [pl.col("data").dt.truncate("1w"), "pdv", "produto"]
     ).agg([
@@ -60,7 +63,7 @@ def clean_and_aggregate(df_completo: pl.DataFrame) -> pl.DataFrame:
         pl.sum("net_value").alias("net_value_semanal")
     ])
 
-    # Lógica para tratamento do outlier de Setembro de 2022
+    # 3. Tratamento do Outlier de Set/2022 (substituição pela semana anterior)
     data_pico = date(2022, 9, 5)
     data_anterior = data_pico - timedelta(weeks=1)
     dados_semana_anterior = df_semanal.filter(pl.col("data").dt.date() == data_anterior)
