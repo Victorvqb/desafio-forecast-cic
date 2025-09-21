@@ -1,0 +1,16 @@
+# Ambiente Virtual
+.venv/
+
+# Arquivos de cache do Python
+__pycache__/
+*.pyc
+
+# Dados brutos (não devem ir para o repositório)
+data/raw/
+
+# Artefatos gerados pelo código
+*.joblib
+*.csv
+
+# Arquivos específicos do VS Code
+.vscode/
