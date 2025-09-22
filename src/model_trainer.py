@@ -1,129 +1,108 @@
-# src/model_trainer.py
+# src/model_trainer.py (VERSÃO FINAL COM API NATIVA)
 """
-Módulo dedicado ao treinamento, otimização e avaliação do modelo LightGBM.
-Inclui as funções customizadas para a otimização de WMAPE e as rotinas
-para treinamento de validação e treinamento final.
+Módulo dedicado ao treinamento e otimização do modelo XGBoost,
+usando a API nativa para máxima compatibilidade e controle.
 """
 
 import polars as pl
-import lightgbm as lgb
+import xgboost as xgb
 import numpy as np
 from datetime import timedelta
 from sklearn.metrics import mean_absolute_error
+from sklearn.model_selection import TimeSeriesSplit
 import joblib
 import config
 import optuna
 
-def wmape_objective(y_true, y_pred):
-    """
-    Função objetivo customizada para o LightGBM.
-    Ela calcula o gradiente e o hessiano para a perda L1 (Erro Absoluto),
-    que direciona o modelo a minimizar o numerador da métrica WMAPE.
-    """
-    grad = np.sign(y_pred - y_true)
-    hess = np.ones_like(y_true)
-    return grad, hess
-
-def wmape_eval(y_true, y_pred):
-    """
-    Métrica de avaliação customizada para o LightGBM.
-    Calcula o WMAPE real para ser monitorado durante o treinamento
-    e usado para o 'early stopping'.
-    """
-    wmape_score = np.sum(np.abs(y_true - y_pred)) / np.sum(np.abs(y_true))
-    # Formato de retorno: (nome_da_metrica, score, menor_e_melhor)
-    return "wmape", wmape_score, False
-
 def tune_hyperparameters(df_modelagem: pl.DataFrame) -> dict:
-    """
-    Usa o Optuna para encontrar a melhor combinação de hiperparâmetros para o modelo.
-
-    Args:
-        df_modelagem (pl.DataFrame): O DataFrame completo com todas as features.
-
-    Returns:
-        dict: Um dicionário contendo os melhores parâmetros encontrados.
-    """
-    # 1. Divisão de dados para a otimização
-    data_de_corte = df_modelagem.get_column("data").max() - timedelta(weeks=4)
-    treino = df_modelagem.filter(pl.col("data") < data_de_corte)
-    validacao = df_modelagem.filter(pl.col("data") >= data_de_corte)
-
-    X_treino = treino.select(config.FEATURES).to_pandas()
-    y_treino = treino.select(config.TARGET_COLUMN).to_pandas().squeeze()
-    X_valid = validacao.select(config.FEATURES).to_pandas()
-    y_valid = validacao.select(config.TARGET_COLUMN).to_pandas().squeeze()
+    """Usa o Optuna com a API nativa do XGBoost para encontrar os melhores hiperparâmetros."""
+    X = df_modelagem.select(config.FEATURES).to_pandas()
+    y = df_modelagem.select(config.TARGET_COLUMN).to_pandas().squeeze()
 
     def objective(trial: optuna.Trial) -> float:
-        """
-        Função que o Optuna tentará minimizar.
-        Para cada 'trial', ele sugere um conjunto de parâmetros, treina um modelo
-        e retorna a pontuação de WMAPE na validação.
-        """
-        # 2. Definição do espaço de busca dos parâmetros
+        """Função que o Optuna tentará minimizar."""
+        # Parâmetros para a API nativa do XGBoost
         params = {
-            'objective': wmape_objective,
-            'metric': 'mae',
-            'n_estimators': 2000,
-            'random_state': 42,
-            'n_jobs': -1,
-            # Parâmetros que o Optuna irá otimizar
+            'objective': 'reg:squarederror',
+            'eval_metric': 'mae',
+            'verbosity': 0, # Silencia o output
+            'tree_method': 'hist',
+            'booster': 'gbtree',
             'learning_rate': trial.suggest_float('learning_rate', 0.01, 0.1, log=True),
-            'num_leaves': trial.suggest_int('num_leaves', 20, 100),
+            'max_depth': trial.suggest_int('max_depth', 3, 10),
             'subsample': trial.suggest_float('subsample', 0.6, 1.0),
             'colsample_bytree': trial.suggest_float('colsample_bytree', 0.6, 1.0),
-            'max_depth': trial.suggest_int('max_depth', -1, 15),
+            'gamma': trial.suggest_float('gamma', 1e-8, 1.0, log=True),
+            'alpha': trial.suggest_float('reg_alpha', 1e-8, 1.0, log=True), # 'reg_alpha' é 'alpha' na API nativa
+            'lambda': trial.suggest_float('reg_lambda', 1e-8, 1.0, log=True), # 'reg_lambda' é 'lambda'
         }
 
-        # 3. Treinamento e avaliação do trial
-        model = lgb.LGBMRegressor(**params)
-        model.fit(X_treino, y_treino,
-                  eval_set=[(X_valid, y_valid)],
-                  eval_metric=wmape_eval,
-                  callbacks=[lgb.early_stopping(100, verbose=False)])
+        tscv = TimeSeriesSplit(n_splits=3)
+        scores = []
+        for train_index, test_index in tscv.split(X):
+            X_train, X_test = X.iloc[train_index], X.iloc[test_index]
+            y_train, y_test = y.iloc[train_index], y.iloc[test_index]
+            
+            y_train.clip(0, inplace=True)
+            y_test.clip(0, inplace=True)
+            y_train_log = np.log1p(y_train)
+            y_test_log = np.log1p(y_test)
 
-        # 4. Cálculo da métrica a ser otimizada
-        preds = model.predict(X_valid)
-        wmape_score = np.sum(np.abs(y_valid - preds)) / np.sum(np.abs(y_valid))
-        return wmape_score
+            # --- MUDANÇA CRÍTICA: Convertendo para o formato DMatrix do XGBoost ---
+            dtrain = xgb.DMatrix(X_train, label=y_train_log)
+            dvalid = xgb.DMatrix(X_test, label=y_test_log)
 
-    # 5. Execução do estudo de otimização
+            # --- MUDANÇA CRÍTICA: Usando xgb.train com early stopping nativo ---
+            model = xgb.train(
+                params=params,
+                dtrain=dtrain,
+                num_boost_round=2000,
+                evals=[(dvalid, 'validation')],
+                early_stopping_rounds=100,
+                verbose_eval=False
+            )
+            
+            # A previsão é feita no DMatrix e já usa a melhor iteração
+            preds_log = model.predict(dvalid)
+            preds = np.expm1(preds_log)
+            preds[preds < 0] = 0
+
+            wmape_score = np.sum(np.abs(y_test - preds)) / np.sum(np.abs(y_test))
+            scores.append(wmape_score)
+            
+        return np.mean(scores)
+
     study = optuna.create_study(direction="minimize")
     study.optimize(objective, n_trials=config.OPTUNA_N_TRIALS)
 
-    print("\nOtimização de Hiperparâmetros concluída!")
-    print(f"Melhor pontuação (WMAPE): {study.best_value:.6f}")
-    print("Melhores parâmetros encontrados:")
-    print(study.best_params)
-
+    print(f"\nMelhor score médio (WMAPE CV): {study.best_value:.6f}")
+    print(f"Melhores parâmetros: {study.best_params}")
     return study.best_params
 
-
 def train_final_model(df_modelagem: pl.DataFrame, best_params: dict):
-    """
-    Treina o modelo final com todos os dados e os melhores parâmetros e o salva.
-    
-    Args:
-        df_modelagem (pl.DataFrame): O DataFrame completo com todas as features.
-        best_params (dict): Dicionário com os melhores hiperparâmetros encontrados pelo Optuna.
-
-    Returns:
-        O objeto do modelo LightGBM treinado.
-    """
+    """Treina o modelo final com todos os dados e os melhores parâmetros e o salva."""
     X_final = df_modelagem.select(config.FEATURES).to_pandas()
     y_final = df_modelagem.select(config.TARGET_COLUMN).to_pandas().squeeze()
+    y_final.clip(0, inplace=True)
+    y_final_log = np.log1p(y_final)
     
-    # Combina os parâmetros fixos com os melhores encontrados pelo Optuna
-    final_params = config.LGBM_PARAMS.copy()
-    final_params['objective'] = wmape_objective
-    final_params.update(best_params) # Atualiza com os melhores parâmetros!
+    # Prepara o DMatrix com todos os dados
+    dtrain_final = xgb.DMatrix(X_final, label=y_final_log)
+    
+    # Junta os parâmetros base com os otimizados
+    final_params = {
+        'objective': 'reg:squarederror', 'eval_metric': 'mae', 'verbosity': 0,
+        'tree_method': 'hist', 'booster': 'gbtree'
+    }
+    final_params.update(best_params)
 
-    final_model = lgb.LGBMRegressor(**final_params)
-    print("\nTreinando modelo final com todos os dados e parâmetros otimizados...")
-    final_model.fit(X_final, y_final)
+    print("\nTreinando modelo final com parâmetros otimizados (API Nativa)...")
+    final_model = xgb.train(
+        params=final_params,
+        dtrain=dtrain_final,
+        num_boost_round=2000 # Treina com um número alto de rounds no final
+    )
 
-    # Salva o modelo treinado em disco para uso posterior pelo script de previsão
     joblib.dump(final_model, config.PATH_MODELO_FINAL)
     print(f"Modelo final otimizado salvo em: {config.PATH_MODELO_FINAL}")
-    
     return final_model

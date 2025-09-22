@@ -1,9 +1,9 @@
 # train.py
 """
-Script principal para executar o pipeline de treinamento do modelo de previsão.
+Script principal para executar o pipeline de treinamento otimizado do modelo.
 Passos:
 1. Carrega e processa os dados brutos.
-2. Executa a engenharia de atributos.
+2. Executa a engenharia de atributos avançada.
 3. Utiliza o Optuna para encontrar os melhores hiperparâmetros.
 4. Treina um modelo final com os parâmetros otimizados e o salva para uso futuro.
 """
