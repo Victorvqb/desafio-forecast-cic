@@ -37,10 +37,7 @@ FEATURES = [
     'media_movel_4_semanas', 'desvio_padrao_movel_4_semanas',
     'min_movel_4_semanas', 'max_movel_4_semanas',
     'contem_feriado',
-    'preco_lag_1_semana',
-    # Features de interação do plano anterior
-    'ano_semana',
-    'mes_dia'
+    'preco_lag_1_semana'
 ]
 
 
