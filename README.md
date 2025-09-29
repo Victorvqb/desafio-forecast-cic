@@ -17,7 +17,7 @@ O código foi inteiramente modularizado seguindo as melhores práticas de engenh
 
 ## 👨‍💻 Autor
 
-Este projeto foi desenvolvido com dedicação por:
+Este projeto foi desenvolvido por:
 
 * **[Victor Barbosa]**
     * LinkedIn: [https://www.linkedin.com/in/viictorbarbosaa/])
