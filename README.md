@@ -129,10 +129,3 @@ Com o ambiente configurado, você pode treinar o modelo e gerar as previsões.
   </ol>
 </details>
 
-## 🔮 Possíveis Próximos Passos
-Para evoluir este projeto, os próximos passos incluiriam:
-* **MLOps:** Orquestrar o pipeline em uma plataforma de nuvem (AWS, GCP, Azure) para retreinamento automático e monitoramento contínuo da performance.
-* **Modelagem por Segmentos:** Treinar modelos especialistas diferentes para produtos de alto volume ("campeões de venda") e de baixo volume ("cauda longa").
-
-## 📄 Licença
-Este projeto está sob a licença MIT.
