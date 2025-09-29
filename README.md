@@ -28,7 +28,7 @@ Apoiar a operação de varejo na reposição inteligente de produtos, otimizando
 
 ## 🛠️ Principais Bibliotecas e Ferramentas
 
-* **Manipulação de Dados:** Polars (para alta performance em grandes datasets)
+* **Manipulação de Dados:** Polars 
 * **Modelagem de Machine Learning:** LightGBM e XGBoost
 * **Otimização de Hiperparâmetros:** Optuna
 * **Estrutura e Avaliação:** Scikit-learn, NumPy
