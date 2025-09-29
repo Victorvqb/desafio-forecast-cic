@@ -19,8 +19,8 @@ O código foi inteiramente modularizado seguindo as melhores práticas de engenh
 
 Este projeto foi desenvolvido por:
 
-* **[Victor Barbosa]**
-    * LinkedIn: [https://www.linkedin.com/in/viictorbarbosaa/])
+* **Victor Barbosa** *
+    * LinkedIn: (https://www.linkedin.com/in/viictorbarbosaa/)
 
 ## 🎯 Objetivo de Negócio
 
