@@ -88,7 +88,7 @@ Com o ambiente configurado, você pode treinar o modelo e gerar as previsões.
 <ol>
   <li>
     <strong>Treinamento do Modelo:</strong><br>
-    Este comando executa todo o processo: tratamento dos dados, engenharia de atributos e a otimização de hiperparâmetros com Optuna. O modelo final treinado será salvo no arquivo <code>modelo_lgbm_final.joblib</code> (ou `_xgb_`).
+    Este comando executa todo o processo: tratamento dos dados, engenharia de atributos e a otimização de hiperparâmetros com Optuna. O modelo final treinado será salvo no arquivo <code>modelo_lgbm_final.joblib</code> (podendo ser mudado para _xgb_).
     <pre><code>python train.py</code></pre>
   </li>
   <li>
