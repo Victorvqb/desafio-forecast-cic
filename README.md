@@ -15,6 +15,13 @@ Este repositório contém uma solução de Machine Learning de ponta a ponta par
 
 O código foi inteiramente modularizado seguindo as melhores práticas de engenharia de software, garantindo que a solução seja limpa, reprodutível e de fácil manutenção.
 
+## 👨‍💻 Autor
+
+Este projeto foi desenvolvido com dedicação por:
+
+* **[Victor Barbosa]**
+    * LinkedIn: [https://www.linkedin.com/in/viictorbarbosaa/])
+
 ## 🎯 Objetivo de Negócio
 
 Apoiar a operação de varejo na reposição inteligente de produtos, otimizando a gestão de estoques e evitando rupturas de gôndola através de uma previsão de demanda precisa e automatizada.
